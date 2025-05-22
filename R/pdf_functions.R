@@ -18,6 +18,11 @@
 # }
 
 
+pdfDeletePages <- function(pdf, pages = NA) {
+  # delete one or more page numbers
+  # pages is numeric vector
+  filter(pdf, !page_number %in% pages)
+}
 
 getPdfPage <- function(fileName, pageNumber) {
   pdftools::pdf_data(fileName)[[pageNumber]]
