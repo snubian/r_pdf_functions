@@ -24,6 +24,16 @@ pdfDeletePages <- function(pdf, pages = NA) {
   filter(pdf, !page_number %in% pages)
 }
 
+matchLine <- function(lines, pattern) {
+  # return matching lines
+  filter(lines, str_detect(line, pattern))
+}
+
+deleteLine <- function(lines, pattern) {
+  # delete matching lines
+  filter(lines, !str_detect(line, pattern))
+}
+
 getPdfPage <- function(fileName, pageNumber) {
   pdftools::pdf_data(fileName)[[pageNumber]]
 }
