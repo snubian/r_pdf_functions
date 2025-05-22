@@ -217,10 +217,13 @@ getPageWithSection <- function(pdf, sectionHeading) {
   }
 }
 
-removePageNumbers <- function(lines) {
-  if (str_detect(lines[nrow(lines), ]$line, "^[0-9]+$")) {
-    return(lines[1:(nrow(lines)-1), ])
-  }
+removePageNumbers <- function(lines, pattern = NA, x_min = 0) {
+  # optional pattern to match, e.g. "Page 3 of 4" etc.
+  # optional minimum x value, i.e. only remove if centred etc.
+  
+  # by default removes single digit on it's own in a line
+  
+  return(filter(lines, !(str_detect(line, ifelse(!is.na(pattern), pattern, "^[0-9]+$")) & min_x >= x_min)))
 }
 
 mergePdfPages <- function(pdf) {
