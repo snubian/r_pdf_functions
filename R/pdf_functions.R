@@ -164,11 +164,17 @@ getSectionLines <- function(lines, sectionHeading) {
   lines[lines$y >= getSectionStartY(lines, sectionHeading) & lines$y <= getSectionEndY(lines, sectionHeading), ]
 }
 
-concatenateLines <- function(lines, lineBreak = TRUE) {
+concatenateLines <- function(lines, lineBreak = TRUE, newParagraphYGap = 17) {
   out <- ""
     
     for (i in seq_len(nrow(lines))) {
-      out <- paste0(out, lines[i, ]$line, ifelse(lineBreak, "\n", " "))
+      out <-
+        paste0(
+          out,
+          lines[i, ]$line,
+          ifelse(lineBreak, "\n", " "),
+          ifelse(lines[i, ]$y_gap_after > newParagraphYGap, "\n", "")
+        )
     }
   
   str_trim(out)
@@ -248,7 +254,32 @@ mergePdfPages <- function(pdf) {
       
       out <- bind_rows(out, thisPage)
     }
+    
+    out$y_previous <- lag(out$y)
+    out$y_next <- lead(out$y)
   }
   
   out
 }
+
+yGapDistribution <- function(lines) {
+  table(lines$y_gap_after)
+}
+
+correctKm2 <- function(pdf) {
+  pdf[pdf$text == "2" & pdf$y < pdf$y_previous, ]$y <- pdf[pdf$text == "2" & pdf$y < pdf$y_previous, ]$y_previous
+  
+  pdf
+}
+
+removeBlockFromTo <- function(lines, patternFrom, patternTo) {
+  lineIndexFrom <- which(str_detect(lines$line, patternFrom)) %>% min()
+  
+  lineIndexTo <- which(str_detect(lines$line, patternTo))
+  lineIndexTo <- lineIndexTo[lineIndexTo > lineIndexFrom] %>% min()
+  
+  lines[c(1:(lineIndexFrom - 1), lineIndexTo:nrow(lines)), ]
+}
+
+
+# remove from given line to point where next line 
