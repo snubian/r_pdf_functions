@@ -182,7 +182,8 @@ concatenateLines <- function(lines, lineBreak = TRUE, newParagraphYGap = 17) {
 
 getSectionText <- function(lines, sectionHeading, lineBreak = TRUE) {
   if (nrow(filter(lines, line == sectionHeading, section_heading)) == 0) {
-    stop(sprintf("Section heading '%s' not found in page", sectionHeading)) 
+    return(NA)
+    #stop(sprintf("Section heading '%s' not found in page", sectionHeading)) 
   }
   
   # TODO error if multiple
@@ -284,10 +285,16 @@ removeBlockFromTo <- function(lines, patternFrom, patternTo) {
 replaceCharacters <- function(x) {
   x %>%
     str_replace_all("–", "-") %>%
+    str_replace_all("‘", "'") %>%
     str_replace_all("’", "'") %>%
     str_replace_all("“", "\"") %>%
     str_replace_all("”", "\"") %>%
-    str_replace_all("•", "-")
+    str_replace_all("•", "-") %>%
+    str_replace_all("±", "+/-") %>%
+    str_replace_all("¼", "1/4") %>%
+    str_replace_all("⅓", "1/3") %>%
+    str_replace_all("°", "") %>%
+    str_replace_all("", "")
 }
 
 retainDoubleLineBreak <- function(x) {
