@@ -297,4 +297,11 @@ retainDoubleLineBreak <- function(x) {
     str_replace_all("##########", "\\\n\\\n")
 }
 
+replaceLine <- function(lines, pattern, replacement) {
+  lines %>%
+    mutate(
+      line = ifelse(str_detect(line, paste0("^", pattern, "$")), replacement, line)
+    )
+}
+
 # remove from given line to point where next line 
