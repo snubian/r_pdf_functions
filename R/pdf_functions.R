@@ -281,5 +281,20 @@ removeBlockFromTo <- function(lines, patternFrom, patternTo) {
   lines[c(1:(lineIndexFrom - 1), lineIndexTo:nrow(lines)), ]
 }
 
+replaceCharacters <- function(x) {
+  x %>%
+    str_replace_all("–", "-") %>%
+    str_replace_all("’", "'") %>%
+    str_replace_all("“", "\"") %>%
+    str_replace_all("”", "\"") %>%
+    str_replace_all("•", "-")
+}
+
+retainDoubleLineBreak <- function(x) {
+  x %>%
+    str_replace_all("\\n\\n", "##########") %>%
+    str_replace_all("\\n", " ") %>%
+    str_replace_all("##########", "\\\n\\\n")
+}
 
 # remove from given line to point where next line 
