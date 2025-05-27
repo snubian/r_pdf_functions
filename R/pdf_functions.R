@@ -1,44 +1,33 @@
-# getDescription <- function(x) {
-#   
-#   rowStart <- which(x$text == "Description" & !x$space) + 1
-#   
-#   rowEnd <- which(x$text == "Distribution") - 1
-#   
-#   getContent(x, rowStart, rowEnd)
-# }
-# 
-# getDistribution <- function(x) {
-#   
-#   rowStart <- which(x$text == "Distribution") + 3
-#   
-#   rowEnd <- min(which(x$text == "Critical")) - 1
-#   
-#   getContent(x, rowStart, rowEnd)
-#   
-# }
 
-
-pdfDeletePages <- function(pdf, pages = NA) {
+pdf_delete_pages <- function(pdf, pages = NA) {
   # delete one or more page numbers
   # pages is numeric vector
   filter(pdf, !page_number %in% pages)
 }
 
-matchLine <- function(lines, pattern) {
+pdf_match_line <- function(lines, pattern) {
   # return matching lines
   filter(lines, str_detect(line, pattern))
 }
 
-deleteLine <- function(lines, pattern) {
-  # delete matching lines
+pdf_delete_line <- function(lines, pattern) {
+  # delete lines matching given pattern
+  # pattern does not need to match entire line
   filter(lines, !str_detect(line, pattern))
 }
 
-getPdfPage <- function(fileName, pageNumber) {
+pdf_replace_line <- function(lines, pattern, replacement) {
+  lines %>%
+    mutate(
+      line = ifelse(str_detect(line, paste0("^", pattern, "$")), replacement, line)
+    )
+}
+
+pdf_get_page <- function(fileName, pageNumber) {
   pdftools::pdf_data(fileName)[[pageNumber]]
 }
 
-getWordsPerLine <- function(pdfPage) {
+pdf_get_words_per_line <- function(pdfPage) {
   x <-
     pdfPage %>%
     group_by(y) %>%
@@ -55,7 +44,7 @@ getWordsPerLine <- function(pdfPage) {
   x
 }
 
-flagSectionHeadings <-
+pdf_flag_section_headings <-
   function(
     lines,
     headingMinimumGapBefore = 20,
@@ -82,7 +71,7 @@ flagSectionHeadings <-
   return(lines)
 }
 
-wordsToLines <- function(pdfPage) {
+pdf_words_to_lines <- function(pdfPage) {
   
   pdfPage <-
     pdfPage %>%
@@ -112,7 +101,7 @@ wordsToLines <- function(pdfPage) {
   bind_rows(out)
 }
 
-getNextSectionHeadingY <- function(lines, sectionHeading) {
+pdf_get_next_section_heading_y <- function(lines, sectionHeading) {
   if (nrow(filter(lines, line == sectionHeading, section_heading)) == 0) {
     stop(sprintf("Section heading '%s' not found in page", sectionHeading)) 
   }
@@ -137,7 +126,7 @@ getNextSectionHeadingY <- function(lines, sectionHeading) {
   
 }
 
-getSectionStartY <- function(lines, sectionHeading) {
+pdf_get_section_start_y <- function(lines, sectionHeading) {
   if (nrow(filter(lines, line == sectionHeading, section_heading)) == 0) {
     stop(sprintf("Section heading '%s' not found in page", sectionHeading)) 
   }
@@ -146,7 +135,7 @@ getSectionStartY <- function(lines, sectionHeading) {
   lines[which(lines$line == sectionHeading & lines$section_heading) + 1, ]$y
 }
 
-getSectionEndY <- function(lines, sectionHeading) {
+pdf_get_section_end_y <- function(lines, sectionHeading) {
   if (nrow(filter(lines, line == sectionHeading, section_heading)) == 0) {
     stop(sprintf("Section heading '%s' not found in page", sectionHeading)) 
   }
@@ -156,7 +145,7 @@ getSectionEndY <- function(lines, sectionHeading) {
   lines[lines$y < getNextSectionHeadingY(lines, sectionHeading), ]$y %>% max()
 }
 
-getSectionLines <- function(lines, sectionHeading) {
+pdf_get_section_lines <- function(lines, sectionHeading) {
   if (nrow(filter(lines, line == sectionHeading, section_heading)) == 0) {
     stop(sprintf("Section heading '%s' not found in page", sectionHeading)) 
   }
@@ -164,7 +153,7 @@ getSectionLines <- function(lines, sectionHeading) {
   lines[lines$y >= getSectionStartY(lines, sectionHeading) & lines$y <= getSectionEndY(lines, sectionHeading), ]
 }
 
-concatenateLines <- function(lines, lineBreak = TRUE, newParagraphYGap = 17) {
+concatenate_lines <- function(lines, lineBreak = TRUE, newParagraphYGap = 17) {
   out <- ""
     
     for (i in seq_len(nrow(lines))) {
@@ -180,7 +169,7 @@ concatenateLines <- function(lines, lineBreak = TRUE, newParagraphYGap = 17) {
   str_trim(out)
 }
 
-getSectionText <- function(lines, sectionHeading, lineBreak = TRUE) {
+pdf_get_section_text <- function(lines, sectionHeading, lineBreak = TRUE) {
   if (nrow(filter(lines, line == sectionHeading, section_heading)) == 0) {
     return(NA)
     #stop(sprintf("Section heading '%s' not found in page", sectionHeading)) 
@@ -188,92 +177,78 @@ getSectionText <- function(lines, sectionHeading, lineBreak = TRUE) {
   
   # TODO error if multiple
   
-  concatenateLines(getSectionLines(lines, sectionHeading), lineBreak)
+  concatenate_lines(get_page_lines(lines, sectionHeading), lineBreak)
 }
 
-pageHasSection <- function(lines, sectionHeading) {
+pdf_has_Section <- function(lines, sectionHeading) {
   nrow(filter(lines, line == sectionHeading, section_heading)) >= 1
 }
 
-getPageLines <- function(pdf) {
-  # TODO - don't like having all these calls in here, especially with 20,10 params
-  
-  wordsPerLine <- getWordsPerLine(pdf)
-  
-  pageLines <- wordsToLines(pdf)
-  
-  merge(wordsPerLine, pageLines, by = "y")
+pdf_get_lines <- function(pdf) {
+  merge(pdf_get_words_per_line(pdf), pdf_words_to_lines(pdf), by = "y")
 }
 
-getPageWithSection <- function(pdf, sectionHeading) {
-  i <- 1
-  
-  repeat {
-    page <- pdf[[i]]
-    
-    if (nrow(page) == 0) {
-      i <- i + 1
-      next
-    }
-    
-    if (pageHasSection(getPageLines(page), sectionHeading)) {
-      return(page)
-    }
-    
-    i <- i + 1
-  }
-}
+# getPageWithSection <- function(pdf, sectionHeading) {
+#   i <- 1
+#   
+#   repeat {
+#     page <- pdf[[i]]
+#     
+#     if (nrow(page) == 0) {
+#       i <- i + 1
+#       next
+#     }
+#     
+#     if (pageHasSection(getPageLines(page), sectionHeading)) {
+#       return(page)
+#     }
+#     
+#     i <- i + 1
+#   }
+# }
 
-removePageNumbers <- function(lines, pattern = NA, x_min = 0) {
+pdf_remove_page_numbers <- function(lines, pattern = NA, x_min = 0) {
   # optional pattern to match, e.g. "Page 3 of 4" etc.
   # optional minimum x value, i.e. only remove if centred etc.
   
-  # by default removes single digit on it's own in a line
+  # by default removes digits on it's own in a line
   
   return(filter(lines, !(str_detect(line, ifelse(!is.na(pattern), pattern, "^[0-9]+$")) & min_x >= x_min)))
 }
 
-mergePdfPages <- function(pdf) {
+pdf_bind_pages <- function(pdf) {
   
   for (i in seq_len(length(pdf))) {
     thisPage <-
       pdf[[i]] %>%
       mutate(
-        page_number = i,
-        
-        y_page = y
+        page_number = i
       )
     
     if (i == 1) {
       out <- thisPage
     } else {
-      thisPage <-
-        thisPage %>%
-        mutate(
-          y = y + max(out$y)
-        )
-      
       out <- bind_rows(out, thisPage)
     }
     
-    out$y_previous <- lag(out$y)
-    out$y_next <- lead(out$y)
+    # out$y_previous <- lag(out$y)
+    # out$y_next <- lead(out$y)
   }
   
   out
 }
 
-yGapDistribution <- function(lines) {
+pdf_y_gap_distribution <- function(lines) {
   table(lines$y_gap_after)
 }
 
-correctKm2 <- function(pdf) {
+pdf_correct_km2 <- function(pdf) {
   pdf[pdf$text == "2" & pdf$y < pdf$y_previous, ]$y <- pdf[pdf$text == "2" & pdf$y < pdf$y_previous, ]$y_previous
   
   pdf
 }
 
-removeBlockFromTo <- function(lines, patternFrom, patternTo) {
+pdf_remove_block <- function(lines, patternFrom, patternTo) {
   lineIndexFrom <- which(str_detect(lines$line, patternFrom)) %>% min()
   
   lineIndexTo <- which(str_detect(lines$line, patternTo))
@@ -282,7 +257,7 @@ removeBlockFromTo <- function(lines, patternFrom, patternTo) {
   lines[c(1:(lineIndexFrom - 1), lineIndexTo:nrow(lines)), ]
 }
 
-replaceCharacters <- function(x) {
+replace_characters <- function(x) {
   x %>%
     str_replace_all("–", "-") %>%
     str_replace_all("—", "-") %>%
@@ -300,18 +275,154 @@ replaceCharacters <- function(x) {
     str_replace_all("…", "...")
 }
 
-retainDoubleLineBreak <- function(x) {
+retain_double_line_break <- function(x) {
   x %>%
     str_replace_all("\\n\\n", "##########") %>%
     str_replace_all("\\n", " ") %>%
     str_replace_all("##########", "\\\n\\\n")
 }
 
-replaceLine <- function(lines, pattern, replacement) {
-  lines %>%
+pdf_remove_header <- function(pdf, max_y) {
+  
+  # remove anything with y <= max_y
+  pdf[pdf$y_page >= max_y, ]
+}
+
+pdf_get_page_dimensions <- function(pdf) {
+  
+  x <-
+    pdf_pagesize(pdf) %>%
     mutate(
-      line = ifelse(str_detect(line, paste0("^", pattern, "$")), replacement, line)
+      page_number = 1:nrow(.),
+      bottom_cumulative = cumsum(bottom)
+    ) %>%
+    dplyr::select(
+      page_number,
+      top:height,
+      bottom_cumulative
+    ) %>%
+    mutate(
+      bottom_cumulative_previous_page = lag(bottom_cumulative)
+    )
+  
+  x[is.na(x)] <- 0
+  return(x)
+}
+
+pdf_load <- function(f) {
+  # wrapper for pdftools::pdf_data which grabs some other stuff from pdftools::pdf_pagesize
+  
+  pdf_data(f) %>%
+    pdf_bind_pages() %>%
+    rename(
+      word_width = width,
+      word_height = height
+    ) %>%
+    merge(pdf_get_page_dimensions(f), by = "page_number") %>%
+    mutate(
+      y_page = y,
+      y = y_page + bottom_cumulative_previous_page
     )
 }
 
+
+
+# pdf_get_table_heading_left_y <- function(lines, heading) {
+#   # get lines that have this as the 
+# 
+#   lines %>%
+#     filter(
+#       str_detect(line, paste0("^", heading))
+#     )
+# }
+
+pdf_get_table_y_limits <- function(lines, lineBefore, min_y_gap_after = 30) {
+  yLineBefore <- lines[lines$line == lineBefore, ]$y
+  
+  yLimitMin <- min(lines[lines$y > yLineBefore, ]$y)
+
+  lines <- filter(lines, y >= yLimitMin)
+  
+  i <- 0
+  
+  repeat {
+    i <- i + 1
+    if (lines[i, ]$y_gap_after > min_y_gap_after) { break }
+  }
+  
+  return(c(yLimitMin, lines[i, ]$y))
+}
+
+pdf_get_table_y_limits_raw_content <- function(pdf, y_limits) {
+  pdf %>%
+    filter(
+      y >= y_limits[1],
+      y <= y_limits[2]
+    )
+}
+
+pdf_get_table_heading_y <- function(pdf, headings) {
+  lines <- pdf_words_to_lines(pdf)
+  
+  headingRegex <- paste0("^(", paste0(headings, collapse = "|"), ")")
+  
+  lines <- filter(lines, str_detect(line, headingRegex))
+  
+  data.frame(
+    heading = headings,
+    y = lines$y
+  )
+}
+
+pdf_get_table_content <- function(pdf, heading_y, x_min) {
+
+  # TODO - better format for output, named cells? or list?
+  
+  lines <-
+    pdf %>%
+    filter(
+      x >= x_min
+    ) %>%
+    pdf_words_to_lines()
+  
+  out <-
+    heading_y %>%
+    mutate(
+      y_next = lead(y),
+      content = NA
+    )
+  
+  for (i in 1:nrow(out)) {
+    yFrom <- out[i, ]$y
+    yTo <- ifelse(i < nrow(out), out[i, ]$y_next, 1e+06)
+    
+    out[i, ]$content = lines[lines$y >= yFrom & lines$y < yTo, ] %>%
+      concatenate_lines() %>%
+      retain_double_line_break()
+  }  
+  
+  out %>%
+    dplyr::select(
+      heading,
+      y,
+      content
+    )
+  
+}
+
+# need to handle case where table content crosses page!
+
+# table headers on left have characteristic that 
+
+
 # remove from given line to point where next line 
+
+
+# give section heading a tag and use that to compile rather than actual heading text
+
+# allow tagging of headings that are not on their own line
+
+# recognise and handle tables, based on x values?
+
+# user provides x value to use as cutoff between table cols, get all to left and right of x
+
