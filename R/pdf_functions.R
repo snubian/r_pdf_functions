@@ -285,6 +285,8 @@ removeBlockFromTo <- function(lines, patternFrom, patternTo) {
 replaceCharacters <- function(x) {
   x %>%
     str_replace_all("–", "-") %>%
+    str_replace_all("—", "-") %>%
+    str_replace_all("−", "-") %>%
     str_replace_all("‘", "'") %>%
     str_replace_all("’", "'") %>%
     str_replace_all("“", "\"") %>%
@@ -294,7 +296,8 @@ replaceCharacters <- function(x) {
     str_replace_all("¼", "1/4") %>%
     str_replace_all("⅓", "1/3") %>%
     str_replace_all("°", "") %>%
-    str_replace_all("", "")
+    str_replace_all("", "") %>%
+    str_replace_all("…", "...")
 }
 
 retainDoubleLineBreak <- function(x) {
