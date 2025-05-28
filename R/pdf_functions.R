@@ -83,7 +83,7 @@ pdf_words_to_lines <- function(pdfPage) {
   
   for (y in unique(pdfPage$y)) {
     
-    wordsInLine <- pdfPage[pdfPage$y == y, ]
+    wordsInLine <- pdfPage[pdfPage$y == y, ] %>% arrange(x)
     
     thisLine <- ""
     
@@ -336,21 +336,29 @@ pdf_load <- function(f) {
 #     )
 # }
 
-pdf_get_table_y_limits <- function(lines, lineBefore, min_y_gap_after = 30) {
-  yLineBefore <- lines[lines$line == lineBefore, ]$y
+pdf_get_table_y_limits <- function(lines, line_before, line_after = NA, min_y_gap_after = 30) {
+  yLineBefore <- lines[grepl(line_before, lines$line), ]$y
   
   yLimitMin <- min(lines[lines$y > yLineBefore, ]$y)
 
   lines <- filter(lines, y >= yLimitMin)
   
-  i <- 0
-  
-  repeat {
-    i <- i + 1
-    if (lines[i, ]$y_gap_after > min_y_gap_after) { break }
+  if (!is.na(line_after)) {
+    yLineAfter <- lines[grepl(line_after, lines$line), ]$y
+    
+    return(c(yLimitMin, yLineAfter))
+    
+  } else {
+    # no line_after specified, so just go until find gap after table
+    i <- 0
+    
+    repeat {
+      i <- i + 1
+      if (lines[i, ]$y_gap_after > min_y_gap_after) { break }
+    }
+    
+    return(c(yLimitMin, lines[i, ]$y))
   }
-  
-  return(c(yLimitMin, lines[i, ]$y))
 }
 
 pdf_get_table_y_limits_raw_content <- function(pdf, y_limits) {
@@ -369,12 +377,12 @@ pdf_get_table_heading_y <- function(pdf, headings) {
   lines <- filter(lines, str_detect(line, headingRegex))
   
   data.frame(
-    heading = headings,
+    heading = names(headings),
     y = lines$y
   )
 }
 
-pdf_get_table_content <- function(pdf, heading_y, x_min) {
+pdf_get_table_content <- function(pdf, heading_y, x_min, f = NULL, y_jiggle = 3) {
 
   # TODO - better format for output, named cells? or list?
   
@@ -383,21 +391,27 @@ pdf_get_table_content <- function(pdf, heading_y, x_min) {
     filter(
       x >= x_min
     ) %>%
-    pdf_words_to_lines()
+    #pdf_words_to_lines()
+    pdf_get_lines()
+  
+  if (!is.null(f)) {
+    lines <- pdf_clean_lines(lines, f)
+  }
   
   out <-
     heading_y %>%
     mutate(
       y_next = lead(y),
-      content = NA
+      content = ""
     )
   
   for (i in 1:nrow(out)) {
-    yFrom <- out[i, ]$y
-    yTo <- ifelse(i < nrow(out), out[i, ]$y_next, 1e+06)
+    yFrom <- out[i, ]$y - y_jiggle
+    yTo <- ifelse(i < nrow(out), out[i, ]$y_next - y_jiggle, (max(lines$y) + 1))
     
     out[i, ]$content = lines[lines$y >= yFrom & lines$y < yTo, ] %>%
       concatenate_lines() %>%
+      replace_characters() %>%
       retain_double_line_break()
   }  
   
@@ -408,6 +422,15 @@ pdf_get_table_content <- function(pdf, heading_y, x_min) {
       content
     )
   
+  
+}
+
+pdf_clean_lines <- function(lines, f) {
+  f(lines)
+}
+
+pdf_has_line <- function(lines, pattern) {
+  nrow(filter(lines, str_detect(line, pattern))) > 0
 }
 
 # need to handle case where table content crosses page!
