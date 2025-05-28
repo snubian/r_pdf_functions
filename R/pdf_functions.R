@@ -387,9 +387,13 @@ pdf_get_table_heading_y <- function(pdf, headings) {
   )
 }
 
-pdf_get_table_content <- function(pdf, heading_y, x_min, f = NULL, y_jiggle = 3) {
+pdf_get_table_content <- function(pdf, table_headings, x_min, f = NULL, y_jiggle = 3) {
 
   # TODO - better format for output, named cells? or list?
+  
+  headingY <-
+    pdf %>%
+    pdf_get_table_heading_y(table_headings)
   
   lines <-
     pdf %>%
@@ -404,7 +408,7 @@ pdf_get_table_content <- function(pdf, heading_y, x_min, f = NULL, y_jiggle = 3)
   }
   
   out <-
-    heading_y %>%
+    headingY %>%
     mutate(
       y_next = lead(y),
       content = ""
@@ -423,10 +427,8 @@ pdf_get_table_content <- function(pdf, heading_y, x_min, f = NULL, y_jiggle = 3)
   out %>%
     dplyr::select(
       heading,
-      y,
       content
     )
-  
   
 }
 
