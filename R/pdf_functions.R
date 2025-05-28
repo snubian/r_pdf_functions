@@ -346,7 +346,7 @@ pdf_get_table_y_limits <- function(lines, line_before, line_after = NA, min_y_ga
   if (!is.na(line_after)) {
     yLineAfter <- lines[grepl(line_after, lines$line), ]$y
     
-    return(c(yLimitMin, yLineAfter))
+    return(c(yLimitMin, (yLineAfter - 1)))
     
   } else {
     # no line_after specified, so just go until find gap after table
@@ -361,7 +361,12 @@ pdf_get_table_y_limits <- function(lines, line_before, line_after = NA, min_y_ga
   }
 }
 
-pdf_get_table_y_limits_raw_content <- function(pdf, y_limits) {
+pdf_get_table_raw <- function(pdf, lines, line_before, line_after = NA, min_y_gap_after = 30) {
+  
+  y_limits <-
+    lines %>%
+    pdf_get_table_y_limits(line_before, line_after, min_y_gap_after)
+  
   pdf %>%
     filter(
       y >= y_limits[1],
