@@ -29,6 +29,9 @@ pdf_load <- function(f, pages = NULL) {
   
   pdf$y_previous <- lag(pdf$y)
   pdf$y_next <- lead(pdf$y)
+  
+  pdf$y_gap_previous <- pdf$y - pdf$y_previous
+  pdf$y_next <- pdf$y_next - pdf$y
 
   return(pdf)
 }
@@ -487,8 +490,7 @@ pdf_has_line <- function(lines, pattern) {
 pdf_filter_words_to_match_lines <- function(pdf, lines) {
   return(
     pdf %>%
-      filter(y >= min(lines$y), y <= max(lines$y)) %>%
-      arrange(y, x)
+      filter(y >= min(lines$y), y <= max(lines$y))
   )
 }
 
