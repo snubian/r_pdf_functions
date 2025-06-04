@@ -31,7 +31,7 @@ pdf_load <- function(f, pages = NULL) {
   pdf$y_next <- lead(pdf$y)
   
   pdf$y_gap_previous <- pdf$y - pdf$y_previous
-  pdf$y_next <- pdf$y_next - pdf$y
+  pdf$y_gap_next <- pdf$y_next - pdf$y
 
   return(pdf)
 }
@@ -216,7 +216,7 @@ pdf_get_section_lines <- function(lines, sectionHeading) {
   lines[lines$y >= getSectionStartY(lines, sectionHeading) & lines$y <= getSectionEndY(lines, sectionHeading), ]
 }
 
-concatenate_lines <- function(lines, lineBreak = TRUE, newParagraphYGap = 17) {
+pdf_concatenate_lines <- function(lines, line_break = TRUE, new_paragraph_y_gap = 17) {
   out <- ""
     
     for (i in seq_len(nrow(lines))) {
@@ -224,9 +224,12 @@ concatenate_lines <- function(lines, lineBreak = TRUE, newParagraphYGap = 17) {
         paste0(
           out,
           lines[i, ]$line,
-          ifelse(lineBreak, "\n", " "),
-          ifelse(lines[i, ]$y_gap_after > newParagraphYGap, "\n", "")
+          ifelse(line_break, "\n", " ")
         )
+      
+      if (!is.na(lines[i, ]$y_gap_after)) {
+        out <- paste0(out, ifelse(lines[i, ]$y_gap_after > new_paragraph_y_gap, "\n", ""))
+      }
     }
   
   str_trim(out)
@@ -490,7 +493,8 @@ pdf_has_line <- function(lines, pattern) {
 pdf_filter_words_to_match_lines <- function(pdf, lines) {
   return(
     pdf %>%
-      filter(y >= min(lines$y), y <= max(lines$y))
+      #filter(y >= min(lines$y), y <= max(lines$y))
+      filter(y %in% lines$y)
   )
 }
 
@@ -499,6 +503,15 @@ pdf_get_table_x_splits <- function(tbl, num_cols) {
   
   return(tbl[1:num_cols, ]$x)
 }
+
+pdf_get_table_y_splits <- function(tbl, x_splits, y_gap_threshold = 15) {
+  tbl <- tbl %>% filter(x < x_splits[2])
+  tbl$y_gap_previous = c(NA, diff(tbl$y))
+  tbl <- tbl %>% filter(y_gap_previous > y_gap_threshold)
+  # y values for top of rows
+  return(tbl$y)
+}
+
 
 # need to handle case where table content crosses page!
 
