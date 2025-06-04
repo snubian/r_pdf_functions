@@ -484,6 +484,14 @@ pdf_has_line <- function(lines, pattern) {
   nrow(filter(lines, str_detect(line, pattern))) > 0
 }
 
+pdf_filter_words_to_match_lines <- function(pdf, lines) {
+  return(
+    pdf %>%
+      filter(y >= min(lines$y), y <= max(lines$y)) %>%
+      arrange(x, y)
+  )
+}
+
 # need to handle case where table content crosses page!
 
 # table headers on left have characteristic that 
