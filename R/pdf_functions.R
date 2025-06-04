@@ -488,7 +488,7 @@ pdf_filter_words_to_match_lines <- function(pdf, lines) {
   return(
     pdf %>%
       filter(y >= min(lines$y), y <= max(lines$y)) %>%
-      arrange(x, y)
+      arrange(y, x)
   )
 }
 
