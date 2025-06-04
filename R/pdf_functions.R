@@ -482,6 +482,48 @@ pdf_get_table_content <- function(pdf, table_headings, x_min, f = NULL, y_jiggle
   
 }
 
+pdf_get_table_content_from_splits <- function(tbl) {
+  # tbl is words filtered to table raw content
+  
+  colX <- pdf_get_table_x_splits(tbl, 5)
+  rowY <- pdf_get_table_y_splits(tbl, colX)
+  
+  rowY <- c(0, rowY, 1e+06)
+  colX <- c(colX, 01000)
+  
+  out <- data.frame(matrix(NA, nrow = length(rowY) - 2, ncol = length(colX) - 2))
+  
+  for (thisY in 2:length(rowY)) {
+    for (thisX in 2:length(colX)) {
+      # get words in cell
+      thisCell <-
+        tbl %>%
+        filter(
+          x >= colX[thisX - 1],
+          x < colX[thisX],
+          y >= rowY[thisY - 1],
+          y < rowY[thisY]
+        )
+      
+      if (nrow(thisCell) > 0) {
+        thisCell <-
+          thisCell %>%
+          pdf_get_lines() %>%
+          pdf_concatenate_lines(line_break = FALSE)
+      } else {
+        thisCell <- NA
+      }
+      
+      out[thisY - 1, thisX - 1] <- thisCell
+      
+    }
+  } 
+  
+  names(out) <- out[1, ] %>% str_to_lower() %>% str_replace_all(" ", "_")
+  
+  return(out)
+}
+
 pdf_clean_lines <- function(lines, f) {
   f(lines)
 }
@@ -493,7 +535,6 @@ pdf_has_line <- function(lines, pattern) {
 pdf_filter_words_to_match_lines <- function(pdf, lines) {
   return(
     pdf %>%
-      #filter(y >= min(lines$y), y <= max(lines$y))
       filter(y %in% lines$y)
   )
 }
