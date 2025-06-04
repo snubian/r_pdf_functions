@@ -1,4 +1,65 @@
 
+#########################################################
+# load from file
+#########################################################
+
+pdf_load <- function(f, pages = NULL) {
+  # wrapper for pdftools::pdf_data which grabs some other stuff from pdftools::pdf_pagesize
+  # use pages vector to select only specific pages
+  
+  pdf <-
+    pdf_data(f)
+  
+  if (!is.null(pages)) {
+    pdf <- pdf[pages]
+  }
+  
+  pdf <-
+    pdf %>%
+    pdf_bind_pages() %>%
+    rename(
+      word_width = width,
+      word_height = height
+    ) %>%
+    merge(pdf_get_page_dimensions(f), by = "page_number") %>%
+    mutate(
+      y_page = y,
+      y = y_page + bottom_cumulative_previous_page
+    )
+  
+  pdf$y_previous <- lag(pdf$y)
+  pdf$y_next <- lead(pdf$y)
+
+  return(pdf)
+}
+
+pdf_get_page_dimensions <- function(pdf) {
+  # get info on page dimensions
+  # this is used by pdf_load to merge into raw pdf data
+  
+  x <-
+    pdf_pagesize(pdf) %>%
+    mutate(
+      page_number = 1:nrow(.),
+      bottom_cumulative = cumsum(bottom)
+    ) %>%
+    dplyr::select(
+      page_number,
+      top:height,
+      bottom_cumulative
+    ) %>%
+    mutate(
+      bottom_cumulative_previous_page = lag(bottom_cumulative)
+    )
+  
+  x[is.na(x)] <- 0
+  return(x)
+}
+
+#########################################################
+# manage raw pdf (words)
+#########################################################
+
 pdf_delete_pages <- function(pdf, pages = NA) {
   # delete one or more page numbers
   # pages is numeric vector
@@ -17,14 +78,13 @@ pdf_delete_line <- function(lines, pattern) {
 }
 
 pdf_replace_line <- function(lines, pattern, replacement) {
+  # replaces matching line
+  # does not need to match complete line, based on
+  # whatever pattern is given by user
   lines %>%
     mutate(
-      line = ifelse(str_detect(line, paste0("^", pattern, "$")), replacement, line)
+      line = ifelse(str_detect(line, pattern), replacement, line)
     )
-}
-
-pdf_get_page <- function(fileName, pageNumber) {
-  pdftools::pdf_data(fileName)[[pageNumber]]
 }
 
 pdf_get_words_per_line <- function(pdfPage) {
@@ -243,18 +303,40 @@ pdf_y_gap_distribution <- function(lines) {
 }
 
 pdf_correct_km2 <- function(pdf) {
-  pdf[pdf$text == "2" & pdf$y < pdf$y_previous, ]$y <- pdf[pdf$text == "2" & pdf$y < pdf$y_previous, ]$y_previous
+  #pdf[pdf$text == "2" & pdf$y < pdf$y_previous, ]$y <- pdf[pdf$text == "2" & pdf$y < pdf$y_previous, ]$y_previous
+  pdf[pdf$text == "2" & abs(pdf$y - pdf$y_previous) <= 3, ]$y <- pdf[pdf$text == "2" & abs(pdf$y - pdf$y_previous) <= 3, ]$y_previous
   
   pdf
 }
 
-pdf_remove_block <- function(lines, patternFrom, patternTo) {
-  lineIndexFrom <- which(str_detect(lines$line, patternFrom)) %>% min()
+pdf_delete_block <- function(lines, pattern_from, pattern_to, retain_from_line = FALSE) {
+  lineIndexFrom <- which(str_detect(lines$line, pattern_from))
+  lineIndexTo <- which(str_detect(lines$line, pattern_to))
   
-  lineIndexTo <- which(str_detect(lines$line, patternTo))
-  lineIndexTo <- lineIndexTo[lineIndexTo > lineIndexFrom] %>% min()
+  if (length(lineIndexFrom) > 0 & length(lineIndexTo) > 0) {
+    
+    lineIndexFrom <- lineIndexFrom %>% min()
+    lineIndexTo <- lineIndexTo[lineIndexTo > lineIndexFrom] %>% min()
+    
+    return(lines[c(1:(lineIndexFrom - ifelse(retain_from_line, 0, 1)), lineIndexTo:nrow(lines)), ])
+  } else {
+    return(lines)
+  }
+}
+
+pdf_extract_block <- function(lines, pattern_from, pattern_to, retain_from_line = FALSE, retain_to_line = FALSE) {
+  lineIndexFrom <- which(str_detect(lines$line, pattern_from))
+  lineIndexTo <- which(str_detect(lines$line, pattern_to))
   
-  lines[c(1:(lineIndexFrom - 1), lineIndexTo:nrow(lines)), ]
+  if (length(lineIndexFrom) > 0 & length(lineIndexTo) > 0) {
+    
+    lineIndexFrom <- lineIndexFrom %>% min()
+    lineIndexTo <- lineIndexTo[lineIndexTo > lineIndexFrom] %>% min()
+    
+    return(lines[(lineIndexFrom + ifelse(retain_from_line, 0, 1)):(lineIndexTo - ifelse(retain_to_line, 0, 1)), ])
+  } else {
+    return(lines)
+  }
 }
 
 replace_characters <- function(x) {
@@ -283,46 +365,8 @@ retain_double_line_break <- function(x) {
 }
 
 pdf_remove_header <- function(pdf, max_y) {
-  
   # remove anything with y <= max_y
   pdf[pdf$y_page >= max_y, ]
-}
-
-pdf_get_page_dimensions <- function(pdf) {
-  
-  x <-
-    pdf_pagesize(pdf) %>%
-    mutate(
-      page_number = 1:nrow(.),
-      bottom_cumulative = cumsum(bottom)
-    ) %>%
-    dplyr::select(
-      page_number,
-      top:height,
-      bottom_cumulative
-    ) %>%
-    mutate(
-      bottom_cumulative_previous_page = lag(bottom_cumulative)
-    )
-  
-  x[is.na(x)] <- 0
-  return(x)
-}
-
-pdf_load <- function(f) {
-  # wrapper for pdftools::pdf_data which grabs some other stuff from pdftools::pdf_pagesize
-  
-  pdf_data(f) %>%
-    pdf_bind_pages() %>%
-    rename(
-      word_width = width,
-      word_height = height
-    ) %>%
-    merge(pdf_get_page_dimensions(f), by = "page_number") %>%
-    mutate(
-      y_page = y,
-      y = y_page + bottom_cumulative_previous_page
-    )
 }
 
 
