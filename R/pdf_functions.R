@@ -492,6 +492,12 @@ pdf_filter_words_to_match_lines <- function(pdf, lines) {
   )
 }
 
+pdf_get_table_x_splits <- function(tbl, num_cols) {
+  tbl <- tbl %>% arrange(y, x)
+  
+  return(tbl[1:num_cols, ]$x)
+}
+
 # need to handle case where table content crosses page!
 
 # table headers on left have characteristic that 
