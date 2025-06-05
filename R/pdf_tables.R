@@ -106,11 +106,11 @@ pdf_get_table_content_from_splits <- function(tbl, skip_row_heading_patterns = N
   
   out <- data.frame(matrix(NA, nrow = length(rowY) - 2, ncol = length(colX) - 2))
   
-  for (thisY in 2:length(rowY)) {
-    for (thisX in 2:length(colX)) {
+  for (thisY in seq_len(length(rowY) - 1)) {
+    for (thisX in seq_len(length(colX) - 1)) {
       
       # set cell limits for this iteration
-      cellLimits <- c(colX[thisX - 1], colX[thisX], rowY[thisY - 1], rowY[thisY])
+      cellLimits <- c(colX[thisX], colX[thisX + 1], rowY[thisY], rowY[thisY + 1])
       
       # check if there are merge requirements for this row based on heading
       if (thisX > 2 & !is.null(merge_specs)) {
@@ -138,7 +138,7 @@ pdf_get_table_content_from_splits <- function(tbl, skip_row_heading_patterns = N
         thisRowHeading <- thisCell
       }
       
-      out[thisY - 1, thisX - 1] <- thisCell
+      out[thisY, thisX] <- thisCell
       
     }
   } 
