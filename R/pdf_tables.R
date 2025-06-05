@@ -164,3 +164,9 @@ pdf_get_table_content <- function(pdf, table_headings, x_min, f = NULL, y_jiggle
   
 }
 
+pdf_extract_table_from_block <- function(pdf, lines, pattern_from, pattern_to) {
+  lines %>%
+    pdf_extract_block(pattern_from, pattern_to) %>%
+    pdf_filter_words_to_match_lines(pdf, .) %>%
+    pdf_get_table_content_from_splits()
+}
