@@ -12,7 +12,9 @@ pdf_clean_table_headings <- function(tbl, num_cols) {
   
   # make assumption that headings are all on same value of y - not necessarily!
   # so get just words having minimum y
-  headers <- filter(tbl, y == min(tbl$y))
+  headers <-
+    filter(tbl, y <= (min(tbl$y) + 5)) %>%
+    arrange(x)
   
   i <- 1
   splits <- vector()
@@ -42,7 +44,7 @@ pdf_clean_table_headings <- function(tbl, num_cols) {
 pdf_get_table_x_splits <- function(tbl, num_cols) {
   # for given raw table content get column (x) splits
   
-  tbl <- tbl %>% arrange(y, x)
+  #tbl <- tbl %>% arrange(y, x)
   
   return(pdf_clean_table_headings(tbl, num_cols))
   
@@ -51,8 +53,9 @@ pdf_get_table_x_splits <- function(tbl, num_cols) {
 
 pdf_get_table_y_splits <- function(tbl, x_splits, y_gap_threshold = 15) {
   # for given raw table content get row (y) splits
-  
+
   tbl <- tbl %>% filter(x < x_splits[2])
+  tbl <- tbl %>% arrange(y)
   tbl$y_gap_previous = c(NA, diff(tbl$y))
   tbl <- tbl %>% filter(y_gap_previous > y_gap_threshold)
   
