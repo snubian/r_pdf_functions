@@ -64,7 +64,9 @@ pdf_get_table_y_splits <- function(tbl, x_splits, y_gap_threshold = 15) {
 }
 
 pdf_remove_table_row_by_heading <- function(tbl, skip_row_heading_patterns) {
-  headingRegex <- paste0("(", paste0(skip_row_heading_patterns, collapse = "|"), ")")
+  headingRegex <-
+    skip_row_heading_patterns %>%
+    concatenate_strings_to_regex_or()
 
   return(tbl[-which(str_detect(tbl[, 1], headingRegex)), ])
 }
