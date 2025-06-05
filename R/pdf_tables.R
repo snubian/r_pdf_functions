@@ -63,7 +63,13 @@ pdf_get_table_y_splits <- function(tbl, x_splits, y_gap_threshold = 15) {
   return(tbl$y)
 }
 
-pdf_get_table_content_from_splits <- function(tbl) {
+pdf_remove_table_row_by_heading <- function(tbl, skip_row_heading_patterns) {
+  headingRegex <- paste0("(", paste0(skip_row_heading_patterns, collapse = "|"), ")")
+
+  return(tbl[-which(str_detect(tbl[, 1], headingRegex)), ])
+}
+
+pdf_get_table_content_from_splits <- function(tbl, skip_row_heading_patterns = NULL) {
   # tbl is words filtered to table raw content
   
   colX <- pdf_get_table_x_splits(tbl, 5)
@@ -80,6 +86,8 @@ pdf_get_table_content_from_splits <- function(tbl) {
       thisCell <-
         tbl %>%
         filter(
+          # if merging cells then just change the max x value!
+          
           x >= colX[thisX - 1],
           x < colX[thisX],
           y >= rowY[thisY - 1],
@@ -101,6 +109,10 @@ pdf_get_table_content_from_splits <- function(tbl) {
   } 
   
   names(out) <- out[1, ] %>% str_to_lower() %>% str_replace_all(" ", "_")
+  
+  if (!is.null(skip_row_heading_patterns)) {
+    out <- out %>% pdf_remove_table_row_by_heading(skip_row_heading_patterns)
+  }
   
   return(out)
 }
