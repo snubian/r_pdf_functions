@@ -3,12 +3,50 @@
 # generic table extract functions
 ##############################################################
 
+pdf_clean_table_headings <- function(tbl, num_cols) {
+  # problem occurs when multiple words on top line of col heading
+  
+  # if space is FALSE then we know there is only one word so that's fine
+  # if space is TRUE then we want to delete any subsequent words on that line until
+  # the next space==FALSE which is the last word on that 
+  
+  # make assumption that headings are all on same value of y - not necessarily!
+  # so get just words having minimum y
+  headers <- filter(tbl, y == min(tbl$y))
+  
+  i <- 1
+  splits <- vector()
+  
+  repeat {
+    if (!headers[i, ]$space) {
+      splits <- c(splits, headers[i, ]$x)
+      i <- i + 1
+    } else {
+      splits <- c(splits, headers[i, ]$x)
+      repeat {
+        i <- i + 1
+        if (!headers[i, ]$space) {
+          i <- i + 1
+          break
+        }
+      }
+    }
+    if (i > nrow(headers)) {
+      break
+    }
+  }
+  
+  return(splits)
+}
+
 pdf_get_table_x_splits <- function(tbl, num_cols) {
   # for given raw table content get column (x) splits
   
   tbl <- tbl %>% arrange(y, x)
   
-  return(tbl[1:num_cols, ]$x)
+  return(pdf_clean_table_headings(tbl, num_cols))
+  
+  #return(tbl[1:num_cols, ]$x)
 }
 
 pdf_get_table_y_splits <- function(tbl, x_splits, y_gap_threshold = 15) {
