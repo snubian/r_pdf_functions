@@ -104,7 +104,7 @@ pdf_get_table_content_from_splits <- function(tbl, skip_row_heading_patterns = N
   colX <- c(pdf_get_table_x_splits(tbl, 5), 1e+06)
   rowY <- c(0, pdf_get_table_y_splits(tbl, colX), 1e+06)
   
-  out <- data.frame(matrix(NA, nrow = length(rowY) - 2, ncol = length(colX) - 2))
+  out <- data.frame(matrix(NA, nrow = length(rowY) - 2, ncol = length(colX) - 1))
   
   for (thisY in seq_len(length(rowY) - 1)) {
     for (thisX in seq_len(length(colX) - 1)) {
@@ -112,13 +112,17 @@ pdf_get_table_content_from_splits <- function(tbl, skip_row_heading_patterns = N
       # set cell limits for this iteration
       cellLimits <- c(colX[thisX], colX[thisX + 1], rowY[thisY], rowY[thisY + 1])
       
+      skipThisCell <- FALSE
+      
       # check if there are merge requirements for this row based on heading
-      if (thisX > 2 & !is.null(merge_specs)) {
+      if (thisX > 1 & !is.null(merge_specs)) {
         thisRowHeadingMergeSpecs <- pdf_get_merge_limits(thisRowHeading, merge_specs)
         
         if (!is.null(thisRowHeadingMergeSpecs)) {
-          if (thisX > thisRowHeadingMergeSpecs[1]) {
+          if (thisX == thisRowHeadingMergeSpecs[1]) {
             cellLimits[1:2] <- colX[thisRowHeadingMergeSpecs + c(0, 1)]
+          } else {
+            skipThisCell <- TRUE
           }
         }
       }
@@ -134,11 +138,14 @@ pdf_get_table_content_from_splits <- function(tbl, skip_row_heading_patterns = N
         thisCell <- NA
       }
       
-      if (thisX == 2 & !is.null(merge_specs)) {
+      if (thisX == 1 & !is.null(merge_specs)) {
         thisRowHeading <- thisCell
       }
       
-      out[thisY, thisX] <- thisCell
+      # don't want to write cell for cols following merge
+      if (!skipThisCell) {
+        out[thisY, thisX] <- thisCell 
+      }
       
     }
   } 
