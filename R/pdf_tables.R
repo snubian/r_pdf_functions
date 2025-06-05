@@ -68,33 +68,62 @@ pdf_remove_table_row_by_heading <- function(tbl, skip_row_heading_patterns) {
     skip_row_heading_patterns %>%
     concatenate_strings_to_regex_or()
 
-  return(tbl[-which(str_detect(tbl[, 1], headingRegex)), ])
+  rowsToRemove <- which(str_detect(tbl[, 1], headingRegex))
+  
+  if (length(rowsToRemove) > 0) {
+    return(tbl[-rowsToRemove, ])
+  } else {
+    return(tbl)    
+  }
+
 }
 
-pdf_get_table_content_from_splits <- function(tbl, skip_row_heading_patterns = NULL) {
+pdf_get_table_cell_from_limits <- function(tbl, cell_limits) {
+  tbl %>%
+    filter(
+      x >= cell_limits[1],
+      x < cell_limits[2],
+      y >= cell_limits[3],
+      y < cell_limits[4]
+    )
+}
+
+pdf_get_merge_limits <- function(heading, merge_specs) {
+  for (i in seq_len(nrow(merge_specs))) {
+    if (str_detect(heading, merge_specs[i, ]$heading_pattern)) {
+      return(c(merge_specs[i, ]$merge_left, merge_specs[i, ]$merge_right))
+    }
+  }
+  
+  return(NULL)
+}
+
+pdf_get_table_content_from_splits <- function(tbl, skip_row_heading_patterns = NULL, merge_specs = NULL) {
   # tbl is words filtered to table raw content
   
-  colX <- pdf_get_table_x_splits(tbl, 5)
-  rowY <- pdf_get_table_y_splits(tbl, colX)
-  
-  rowY <- c(0, rowY, 1e+06)
-  colX <- c(colX, 01000)
+  colX <- c(pdf_get_table_x_splits(tbl, 5), 1e+06)
+  rowY <- c(0, pdf_get_table_y_splits(tbl, colX), 1e+06)
   
   out <- data.frame(matrix(NA, nrow = length(rowY) - 2, ncol = length(colX) - 2))
   
   for (thisY in 2:length(rowY)) {
     for (thisX in 2:length(colX)) {
-      # get words in cell
-      thisCell <-
-        tbl %>%
-        filter(
-          # if merging cells then just change the max x value!
-          
-          x >= colX[thisX - 1],
-          x < colX[thisX],
-          y >= rowY[thisY - 1],
-          y < rowY[thisY]
-        )
+      
+      # set cell limits for this iteration
+      cellLimits <- c(colX[thisX - 1], colX[thisX], rowY[thisY - 1], rowY[thisY])
+      
+      # check if there are merge requirements for this row based on heading
+      if (thisX > 2 & !is.null(merge_specs)) {
+        thisRowHeadingMergeSpecs <- pdf_get_merge_limits(thisRowHeading, merge_specs)
+        
+        if (!is.null(thisRowHeadingMergeSpecs)) {
+          if (thisX > thisRowHeadingMergeSpecs[1]) {
+            cellLimits[1:2] <- colX[thisRowHeadingMergeSpecs + c(0, 1)]
+          }
+        }
+      }
+      
+      thisCell <- pdf_get_table_cell_from_limits(tbl, cellLimits)
       
       if (nrow(thisCell) > 0) {
         thisCell <-
@@ -103,6 +132,10 @@ pdf_get_table_content_from_splits <- function(tbl, skip_row_heading_patterns = N
           pdf_concatenate_lines(line_break = FALSE)
       } else {
         thisCell <- NA
+      }
+      
+      if (thisX == 2 & !is.null(merge_specs)) {
+        thisRowHeading <- thisCell
       }
       
       out[thisY - 1, thisX - 1] <- thisCell
