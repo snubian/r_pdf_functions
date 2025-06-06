@@ -24,8 +24,10 @@ pdf_load <- function(f, pages = NULL) {
     merge(pdf_get_page_dimensions(f), by = "page_number") %>%
     mutate(
       y_page = y,
-      y = y_page + bottom_cumulative_previous_page
-    )
+      y = y_page + bottom_cumulative_previous_page,
+      y = floor(y)
+    ) %>%
+    pdf_align_slightly_offset_words(offsetThreshold = 1)
   
   pdf$y_previous <- lag(pdf$y)
   pdf$y_next <- lead(pdf$y)
